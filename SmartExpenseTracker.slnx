@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SmartExpenseTracker.Api/SmartExpenseTracker.Api.csproj" />
+    <Project Path="src/SmartExpenseTracker.Application/SmartExpenseTracker.Application.csproj" />
+    <Project Path="src/SmartExpenseTracker.Domain/SmartExpenseTracker.Domain.csproj" />
+    <Project Path="src/SmartExpenseTracker.Infrastructure/SmartExpenseTracker.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SmartExpenseTracker.Tests/SmartExpenseTracker.Tests.csproj" />
+  </Folder>
+</Solution>
