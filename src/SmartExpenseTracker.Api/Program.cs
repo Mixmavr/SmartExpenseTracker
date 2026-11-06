@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using SmartExpenseTracker.Application.ExchangeRates;
 using SmartExpenseTracker.Infrastructure.Data;
+using SmartExpenseTracker.Infrastructure.ExchangeRates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +13,9 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.Configure<ExchangeRateApiSettings>(builder.Configuration.GetSection("ExchangeRateApi"));
+builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>();
 
 var app = builder.Build();
 
