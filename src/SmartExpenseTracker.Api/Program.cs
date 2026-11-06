@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using SmartExpenseTracker.Application.ExchangeRates;
-using SmartExpenseTracker.Infrastructure.Data;
-using SmartExpenseTracker.Infrastructure.ExchangeRates;
+using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Infrastructure.CurrencyProviders;
+using SmartExpenseTracker.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 

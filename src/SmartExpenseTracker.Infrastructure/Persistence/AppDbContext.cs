@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartExpenseTracker.Domain.Entities;
 
-namespace SmartExpenseTracker.Infrastructure.Data;
+namespace SmartExpenseTracker.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {

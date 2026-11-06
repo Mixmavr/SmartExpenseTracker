@@ -3,11 +3,11 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using SmartExpenseTracker.Infrastructure.Data;
+using SmartExpenseTracker.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace SmartExpenseTracker.Infrastructure.Data.Migrations
+namespace SmartExpenseTracker.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot

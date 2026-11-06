@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
-using SmartExpenseTracker.Application.ExchangeRates;
+using SmartExpenseTracker.Application.Currency;
 
-namespace SmartExpenseTracker.Infrastructure.ExchangeRates;
+namespace SmartExpenseTracker.Infrastructure.CurrencyProviders;
 
 public class ExchangeRateApiProvider : IExchangeRateProvider
 {

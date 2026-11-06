@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using SmartExpenseTracker.Infrastructure.Data;
+using SmartExpenseTracker.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace SmartExpenseTracker.Infrastructure.Data.Migrations
+namespace SmartExpenseTracker.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20261106151748_InitialCreate")]

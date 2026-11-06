@@ -1,4 +1,4 @@
-namespace SmartExpenseTracker.Infrastructure.ExchangeRates;
+namespace SmartExpenseTracker.Infrastructure.CurrencyProviders;
 
 public class ExchangeRateApiSettings
 {
