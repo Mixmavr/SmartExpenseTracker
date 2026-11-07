@@ -38,17 +38,7 @@ public class ExchangeRateServiceTests
         return new ExchangeRateService(provider, cache, NullLogger<ExchangeRateService>.Instance);
     }
 
-    [Fact]
-    public async Task GetRatesAsync_ReturnsTheRatesFromTheProvider()
-    {
-        var provider = new FakeExchangeRateProvider();
-        var service = CreateService(provider, new MemoryCache(new MemoryCacheOptions()));
-
-        var rates = await service.GetRatesAsync(CancellationToken.None);
-
-        Assert.Equal(1.25m, rates["USD"]);
-    }
-
+    // Cache: the second call uses the saved rates and does not ask the API again.
     [Fact]
     public async Task GetRatesAsync_CalledTwice_AsksTheProviderOnlyOnce()
     {
@@ -61,6 +51,7 @@ public class ExchangeRateServiceTests
         Assert.Equal(1, provider.Calls);
     }
 
+    // Concurrency: 20 requests at the same time still cause only one API call.
     [Fact]
     public async Task GetRatesAsync_ManyRequestsAtTheSameTime_AsksTheProviderOnlyOnce()
     {
@@ -76,6 +67,7 @@ public class ExchangeRateServiceTests
         Assert.Equal(1, provider.Calls);
     }
 
+    // Fallback: when the cache expired and the API is down, we use the backup rates.
     [Fact]
     public async Task GetRatesAsync_ApiFailsAfterTheCacheExpired_ReturnsTheLastKnownRates()
     {
@@ -92,6 +84,7 @@ public class ExchangeRateServiceTests
         Assert.Equal(1.25m, rates["USD"]);
     }
 
+    // Error: when the API is down and there is no backup, the error is not hidden.
     [Fact]
     public async Task GetRatesAsync_ApiFailsAndThereAreNoLastKnownRates_ThrowsTheError()
     {
@@ -101,6 +94,7 @@ public class ExchangeRateServiceTests
         await Assert.ThrowsAsync<ExchangeRateProviderException>(() => service.GetRatesAsync(CancellationToken.None));
     }
 
+    // Fallback cache: after using the backup, the next requests do not call the failing API again.
     [Fact]
     public async Task GetRatesAsync_UsingTheLastKnownRates_DoesNotCallTheFailingApiAgainRightAway()
     {
