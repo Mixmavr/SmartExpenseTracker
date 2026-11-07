@@ -8,12 +8,18 @@ public class ExchangeRateServiceTests
     // A fake provider that counts how many times it was called.
     private class FakeExchangeRateProvider : IExchangeRateProvider
     {
-        public int Calls { get; private set; }
+        private int _calls;
 
-        public Task<Dictionary<string, decimal>> GetLatestRatesAsync(string baseCurrency, CancellationToken cancellationToken)
+        public int Calls => _calls;
+
+        // Pretends the network is slow, like the real API.
+        public TimeSpan Delay { get; set; }
+
+        public async Task<Dictionary<string, decimal>> GetLatestRatesAsync(string baseCurrency, CancellationToken cancellationToken)
         {
-            Calls++;
-            return Task.FromResult(new Dictionary<string, decimal> { ["USD"] = 1.25m });
+            Interlocked.Increment(ref _calls);
+            await Task.Delay(Delay, cancellationToken);
+            return new Dictionary<string, decimal> { ["USD"] = 1.25m };
         }
     }
 
@@ -36,6 +42,21 @@ public class ExchangeRateServiceTests
 
         await service.GetRatesAsync(CancellationToken.None);
         await service.GetRatesAsync(CancellationToken.None);
+
+        Assert.Equal(1, provider.Calls);
+    }
+
+    [Fact]
+    public async Task GetRatesAsync_ManyRequestsAtTheSameTime_AsksTheProviderOnlyOnce()
+    {
+        var provider = new FakeExchangeRateProvider { Delay = TimeSpan.FromMilliseconds(200) };
+        var cache = new MemoryCache(new MemoryCacheOptions());
+
+        // 20 requests arrive together, each one gets its own service (like in the real app).
+        var tasks = Enumerable.Range(0, 20)
+            .Select(_ => Task.Run(() => new ExchangeRateService(provider, cache).GetRatesAsync(CancellationToken.None)))
+            .ToList();
+        await Task.WhenAll(tasks);
 
         Assert.Equal(1, provider.Calls);
     }

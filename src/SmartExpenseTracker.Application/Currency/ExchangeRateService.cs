@@ -8,6 +8,9 @@ public class ExchangeRateService : IExchangeRateService
     private const string CacheKey = "exchange-rates";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
 
+    // Static, so all requests share the same lock (the service itself is created once per request).
+    private static readonly SemaphoreSlim Lock = new(1, 1);
+
     private readonly IExchangeRateProvider _provider;
     private readonly IMemoryCache _cache;
 
@@ -20,15 +23,38 @@ public class ExchangeRateService : IExchangeRateService
     public async Task<Dictionary<string, decimal>> GetRatesAsync(CancellationToken cancellationToken)
     {
         // 1. If we already have the rates in memory, use them.
-        if (_cache.TryGetValue(CacheKey, out Dictionary<string, decimal>? cachedRates) && cachedRates != null)
+        var cachedRates = GetFromCache();
+        if (cachedRates != null)
         {
             return cachedRates;
         }
 
-        // 2. Otherwise ask the API and keep the answer for the next hour.
-        var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
-        _cache.Set(CacheKey, rates, CacheDuration);
+        // 2. Only one request at a time may ask the API. The others wait here.
+        await Lock.WaitAsync(cancellationToken);
+        try
+        {
+            // 3. While we were waiting, another request may have already filled the cache.
+            cachedRates = GetFromCache();
+            if (cachedRates != null)
+            {
+                return cachedRates;
+            }
 
+            // 4. Still nothing: ask the API and keep the answer for the next hour.
+            var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
+            _cache.Set(CacheKey, rates, CacheDuration);
+
+            return rates;
+        }
+        finally
+        {
+            Lock.Release();
+        }
+    }
+
+    private Dictionary<string, decimal>? GetFromCache()
+    {
+        _cache.TryGetValue(CacheKey, out Dictionary<string, decimal>? rates);
         return rates;
     }
 }
