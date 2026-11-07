@@ -27,6 +27,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 
+    // The Swagger page: open /swagger in the browser.
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "SmartExpenseTracker v1"));
+
     // Create or update the database when the app starts.
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
