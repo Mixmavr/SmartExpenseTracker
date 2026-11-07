@@ -6,7 +6,7 @@ namespace SmartExpenseTracker.Application.Currency;
 public class ExchangeRateService : IExchangeRateService
 {
     public const string CacheKey = "exchange-rates";
-    private const string LastKnownKey = "exchange-rates-last-known";
+    private const string BackupKey = "exchange-rates-backup";
     private const string BaseCurrency = "EUR";
 
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
@@ -28,7 +28,7 @@ public class ExchangeRateService : IExchangeRateService
 
     public async Task<Dictionary<string, decimal>> GetRatesAsync(CancellationToken cancellationToken)
     {
-        // 1. If we already have the rates in memory, use them.
+        // 1. If we already have the rates in memory
         var cachedRates = GetFromCache(CacheKey);
         if (cachedRates != null)
         {
@@ -49,23 +49,23 @@ public class ExchangeRateService : IExchangeRateService
             {
                 var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
                 _cache.Set(CacheKey, rates, CacheDuration);
-                _cache.Set(LastKnownKey, rates); // no expiration: our backup copy
+                _cache.Set(BackupKey, rates); // Backup copy
                 return rates;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "The exchange rate API failed. Trying the last known rates.");
 
-                // 3. The API failed: use the backup copy if we have one.
-                var lastKnownRates = GetFromCache(LastKnownKey);
-                if (lastKnownRates == null)
+                // 3. Use backup if API fail
+                var backupRates = GetFromCache(BackupKey);
+                if (backupRates == null)
                 {
                     throw;
                 }
 
-                // Keep them for a minute so we do not call the failing API again for every request.
-                _cache.Set(CacheKey, lastKnownRates, FallbackCacheDuration);
-                return lastKnownRates;
+                // Fill with backup for next 1 min
+                _cache.Set(CacheKey, backupRates, FallbackCacheDuration);
+                return backupRates;
             }
         }
         finally
