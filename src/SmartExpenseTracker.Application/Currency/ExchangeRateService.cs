@@ -35,18 +35,16 @@ public class ExchangeRateService : IExchangeRateService
             return cachedRates;
         }
 
-        // 2. Only one request at a time may ask the API. The others wait here.
         await Lock.WaitAsync(cancellationToken);
         try
         {
-            // 3. While we were waiting, another request may have already filled the cache.
+            // 2. While we were waiting, another request may have already filled the cache.
             cachedRates = GetFromCache(CacheKey);
             if (cachedRates != null)
             {
                 return cachedRates;
             }
 
-            // 4. Still nothing: ask the API.
             try
             {
                 var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
@@ -58,7 +56,7 @@ public class ExchangeRateService : IExchangeRateService
             {
                 _logger.LogWarning(ex, "The exchange rate API failed. Trying the last known rates.");
 
-                // 5. The API failed: use the backup copy if we have one.
+                // 3. The API failed: use the backup copy if we have one.
                 var lastKnownRates = GetFromCache(LastKnownKey);
                 if (lastKnownRates == null)
                 {
