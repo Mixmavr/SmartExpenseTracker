@@ -17,6 +17,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.Configure<ExchangeRateApiSettings>(builder.Configuration.GetSection("ExchangeRateApi"));
 builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>();
 
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
