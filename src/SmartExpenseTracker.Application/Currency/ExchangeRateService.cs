@@ -1,29 +1,35 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace SmartExpenseTracker.Application.Currency;
 
 public class ExchangeRateService : IExchangeRateService
 {
+    public const string CacheKey = "exchange-rates";
+    private const string LastKnownKey = "exchange-rates-last-known";
     private const string BaseCurrency = "EUR";
-    private const string CacheKey = "exchange-rates";
+
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+    private static readonly TimeSpan FallbackCacheDuration = TimeSpan.FromMinutes(1);
 
     // Static, so all requests share the same lock (the service itself is created once per request).
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
     private readonly IExchangeRateProvider _provider;
     private readonly IMemoryCache _cache;
+    private readonly ILogger<ExchangeRateService> _logger;
 
-    public ExchangeRateService(IExchangeRateProvider provider, IMemoryCache cache)
+    public ExchangeRateService(IExchangeRateProvider provider, IMemoryCache cache, ILogger<ExchangeRateService> logger)
     {
         _provider = provider;
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<Dictionary<string, decimal>> GetRatesAsync(CancellationToken cancellationToken)
     {
         // 1. If we already have the rates in memory, use them.
-        var cachedRates = GetFromCache();
+        var cachedRates = GetFromCache(CacheKey);
         if (cachedRates != null)
         {
             return cachedRates;
@@ -34,17 +40,35 @@ public class ExchangeRateService : IExchangeRateService
         try
         {
             // 3. While we were waiting, another request may have already filled the cache.
-            cachedRates = GetFromCache();
+            cachedRates = GetFromCache(CacheKey);
             if (cachedRates != null)
             {
                 return cachedRates;
             }
 
-            // 4. Still nothing: ask the API and keep the answer for the next hour.
-            var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
-            _cache.Set(CacheKey, rates, CacheDuration);
+            // 4. Still nothing: ask the API.
+            try
+            {
+                var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
+                _cache.Set(CacheKey, rates, CacheDuration);
+                _cache.Set(LastKnownKey, rates); // no expiration: our backup copy
+                return rates;
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "The exchange rate API failed. Trying the last known rates.");
 
-            return rates;
+                // 5. The API failed: use the backup copy if we have one.
+                var lastKnownRates = GetFromCache(LastKnownKey);
+                if (lastKnownRates == null)
+                {
+                    throw;
+                }
+
+                // Keep them for a minute so we do not call the failing API again for every request.
+                _cache.Set(CacheKey, lastKnownRates, FallbackCacheDuration);
+                return lastKnownRates;
+            }
         }
         finally
         {
@@ -52,9 +76,9 @@ public class ExchangeRateService : IExchangeRateService
         }
     }
 
-    private Dictionary<string, decimal>? GetFromCache()
+    private Dictionary<string, decimal>? GetFromCache(string key)
     {
-        _cache.TryGetValue(CacheKey, out Dictionary<string, decimal>? rates);
+        _cache.TryGetValue(key, out Dictionary<string, decimal>? rates);
         return rates;
     }
 }
