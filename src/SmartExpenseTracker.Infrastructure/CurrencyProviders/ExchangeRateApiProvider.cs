@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SmartExpenseTracker.Application.Exceptions;
 using SmartExpenseTracker.Application.Interfaces;
@@ -23,16 +24,21 @@ public class ExchangeRateApiProvider : IExchangeRateProvider
         ExchangeRateApiResponse? response;
         try
         {
-            response = await _httpClient.GetFromJsonAsync<ExchangeRateApiResponse>(url, cancellationToken);
+            using var httpResponse = await _httpClient.GetAsync(url, cancellationToken);
+            response = await httpResponse.Content.ReadFromJsonAsync<ExchangeRateApiResponse>(cancellationToken);
         }
         catch (HttpRequestException ex)
         {
             throw new ExchangeRateProviderException("Could not reach ExchangeRate-API.", ex);
         }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new ExchangeRateProviderException("ExchangeRate-API returned a response we could not read.", ex);
+        }
 
         if (response == null || response.Result != "success")
         {
-            throw new ExchangeRateProviderException($"ExchangeRate-API returned an error: {response?.ErrorType}");
+            throw new ExchangeRateProviderException($"ExchangeRate-API returned an error: {response?.ErrorType ?? "unknown"}.");
         }
 
         return response.ConversionRates;
