@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SmartExpenseTracker.Api.Middleware;
 using SmartExpenseTracker.Application.Interfaces;
 using SmartExpenseTracker.Application.Services;
 using SmartExpenseTracker.Infrastructure.CurrencyProviders;
@@ -23,6 +24,8 @@ builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
