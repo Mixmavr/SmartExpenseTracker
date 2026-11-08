@@ -18,7 +18,6 @@ public class AuthController : ControllerBase
 
     /// <summary>Creates a new user account.</summary>
     [HttpPost("register")]
-    [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
     public async Task<ActionResult<UserDto>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var user = await _authService.RegisterAsync(request.Email, request.Password, cancellationToken);
@@ -27,7 +26,6 @@ public class AuthController : ControllerBase
 
     /// <summary>Checks the email and password and returns a JWT token.</summary>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(TokenDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<TokenDto>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var token = await _authService.LoginAsync(request.Email, request.Password, cancellationToken);
