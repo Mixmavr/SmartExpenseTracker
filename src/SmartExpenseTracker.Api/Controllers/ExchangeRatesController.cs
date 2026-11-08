@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Models;
 
 namespace SmartExpenseTracker.Api.Controllers;
 

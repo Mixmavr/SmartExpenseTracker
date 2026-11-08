@@ -1,4 +1,6 @@
-using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Exceptions;
+using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Services;
 
 namespace SmartExpenseTracker.Tests.UnitTests;
 

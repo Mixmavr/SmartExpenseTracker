@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Services;
 using SmartExpenseTracker.Infrastructure.CurrencyProviders;
 using SmartExpenseTracker.Infrastructure.Persistence;
 

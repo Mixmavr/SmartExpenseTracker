@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using SmartExpenseTracker.Application.Interfaces;
 
-namespace SmartExpenseTracker.Application.Currency;
+namespace SmartExpenseTracker.Application.Services;
 
 public class ExchangeRateService : IExchangeRateService
 {

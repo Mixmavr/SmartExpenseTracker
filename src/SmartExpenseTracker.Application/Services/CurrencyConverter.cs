@@ -1,4 +1,8 @@
-namespace SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Exceptions;
+using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Models;
+
+namespace SmartExpenseTracker.Application.Services;
 
 public class CurrencyConverter : ICurrencyConverter
 {

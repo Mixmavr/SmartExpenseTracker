@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
-using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Exceptions;
+using SmartExpenseTracker.Application.Interfaces;
 
 namespace SmartExpenseTracker.Infrastructure.CurrencyProviders;
 

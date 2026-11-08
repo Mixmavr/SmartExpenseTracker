@@ -1,4 +1,4 @@
-namespace SmartExpenseTracker.Application.Currency;
+namespace SmartExpenseTracker.Application.Interfaces;
 
 public interface IExchangeRateService
 {

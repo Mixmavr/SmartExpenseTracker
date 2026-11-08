@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
-using SmartExpenseTracker.Application.Currency;
+using SmartExpenseTracker.Application.Exceptions;
+using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Services;
 
 namespace SmartExpenseTracker.Tests.UnitTests;
 
