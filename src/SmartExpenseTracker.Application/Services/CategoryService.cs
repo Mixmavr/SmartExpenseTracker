@@ -1,5 +1,6 @@
 using SmartExpenseTracker.Application.Exceptions;
 using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Mappers;
 using SmartExpenseTracker.Application.Models;
 using SmartExpenseTracker.Domain.Entities;
 
@@ -17,13 +18,13 @@ public class CategoryService : ICategoryService
     public async Task<List<CategoryDto>> GetAllAsync(int userId, CancellationToken cancellationToken)
     {
         var categories = await _categoryRepository.GetAllAsync(userId, cancellationToken);
-        return categories.Select(ToDto).ToList();
+        return categories.Select(c => c.ToDto()).ToList();
     }
 
     public async Task<CategoryDto> GetByIdAsync(int userId, int id, CancellationToken cancellationToken)
     {
         var category = await GetOwnedCategoryAsync(userId, id, cancellationToken);
-        return ToDto(category);
+        return category.ToDto();
     }
 
     public async Task<CategoryDto> CreateAsync(int userId, string name, CancellationToken cancellationToken)
@@ -38,7 +39,7 @@ public class CategoryService : ICategoryService
         var category = new Category { Name = name, UserId = userId };
         await _categoryRepository.AddAsync(category, cancellationToken);
 
-        return ToDto(category);
+        return category.ToDto();
     }
 
     public async Task<CategoryDto> UpdateAsync(int userId, int id, string name, CancellationToken cancellationToken)
@@ -54,7 +55,7 @@ public class CategoryService : ICategoryService
         category.Name = name;
         await _categoryRepository.UpdateAsync(category, cancellationToken);
 
-        return ToDto(category);
+        return category.ToDto();
     }
 
     public async Task DeleteAsync(int userId, int id, CancellationToken cancellationToken)
@@ -79,11 +80,5 @@ public class CategoryService : ICategoryService
         }
 
         return category;
-    }
-
-    //mapper
-    private static CategoryDto ToDto(Category category)
-    {
-        return new CategoryDto(category.Id, category.Name);
     }
 }
