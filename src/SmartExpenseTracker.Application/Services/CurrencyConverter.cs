@@ -26,7 +26,7 @@ public class CurrencyConverter : ICurrencyConverter
         var rates = await _exchangeRateService.GetRatesAsync(cancellationToken);
         if (!rates.TryGetValue(code, out var unitsPerEur) || unitsPerEur <= 0)
         {
-            throw new UnsupportedCurrencyException(code);
+            throw new AppException(ErrorType.Validation, $"The currency '{code}' is not supported.");
         }
 
         // The rates say "how many units of this currency make 1 EUR". We need the opposite.

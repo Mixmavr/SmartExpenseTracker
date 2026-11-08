@@ -37,14 +37,24 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Equal(StatusCodes.Status200OK, status);
     }
 
-    // An unsupported currency is the user's mistake: 400 and a message that explains it.
+    // A validation error is the user's mistake: 400 and a message that explains it.
     [Fact]
-    public async Task InvokeAsync_UnsupportedCurrency_Returns400WithTheMessage()
+    public async Task InvokeAsync_ValidationError_Returns400WithTheMessage()
     {
-        var (status, body) = await RunAsync(new UnsupportedCurrencyException("XXX"));
+        var (status, body) = await RunAsync(new AppException(ErrorType.Validation, "The currency 'XXX' is not supported."));
 
         Assert.Equal(StatusCodes.Status400BadRequest, status);
         Assert.Contains("XXX", body.GetProperty("detail").GetString());
+    }
+
+    // A conflict with data that already exists: 409 and a message that explains it.
+    [Fact]
+    public async Task InvokeAsync_Conflict_Returns409WithTheMessage()
+    {
+        var (status, body) = await RunAsync(new AppException(ErrorType.Conflict, "The email 'jane@example.com' is already registered."));
+
+        Assert.Equal(StatusCodes.Status409Conflict, status);
+        Assert.Contains("jane@example.com", body.GetProperty("detail").GetString());
     }
 
     // When the rates API is down and we have no backup, the service is temporarily unavailable: 503.

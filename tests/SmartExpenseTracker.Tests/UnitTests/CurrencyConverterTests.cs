@@ -67,13 +67,16 @@ public class CurrencyConverterTests
         Assert.Equal(0.00625m, result.ExchangeRate);
     }
 
-    // A currency that is not in the rates gives an error.
+    // A currency that is not in the rates gives a validation error that names the currency.
     [Fact]
-    public async Task ConvertToEurAsync_UnknownCurrency_ThrowsUnsupportedCurrencyException()
+    public async Task ConvertToEurAsync_UnknownCurrency_ThrowsAValidationError()
     {
         var converter = new CurrencyConverter(new FakeExchangeRateService());
 
-        await Assert.ThrowsAsync<UnsupportedCurrencyException>(
+        var error = await Assert.ThrowsAsync<AppException>(
             () => converter.ConvertToEurAsync(10m, "XXX", CancellationToken.None));
+
+        Assert.Equal(ErrorType.Validation, error.Type);
+        Assert.Contains("XXX", error.Message);
     }
 }

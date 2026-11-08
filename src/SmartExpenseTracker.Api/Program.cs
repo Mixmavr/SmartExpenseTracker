@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using SmartExpenseTracker.Api.Middleware;
 using SmartExpenseTracker.Application.Interfaces;
 using SmartExpenseTracker.Application.Services;
+using SmartExpenseTracker.Domain.Entities;
 using SmartExpenseTracker.Infrastructure.CurrencyProviders;
 using SmartExpenseTracker.Infrastructure.Persistence;
+using SmartExpenseTracker.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +25,10 @@ builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>()
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
+
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 

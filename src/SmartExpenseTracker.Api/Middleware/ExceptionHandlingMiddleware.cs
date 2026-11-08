@@ -30,7 +30,13 @@ public class ExceptionHandlingMiddleware
     {
         var (status, title) = ex switch
         {
-            UnsupportedCurrencyException => (StatusCodes.Status400BadRequest, "Unsupported currency"),
+            AppException app => app.Type switch
+            {
+                ErrorType.Validation => (StatusCodes.Status400BadRequest, "Bad request"),
+                ErrorType.NotFound => (StatusCodes.Status404NotFound, "Not found"),
+                ErrorType.Conflict => (StatusCodes.Status409Conflict, "Conflict"),
+                _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred"),
+            },
             ExchangeRateProviderException => (StatusCodes.Status503ServiceUnavailable, "Exchange rates are not available right now"),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred"),
         };
