@@ -18,6 +18,11 @@ public class AuthServiceTests
             return Task.FromResult(Users.Any(u => u.Email == email));
         }
 
+        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Users.FirstOrDefault(u => u.Email == email));
+        }
+
         public Task AddAsync(User user, CancellationToken cancellationToken)
         {
             user.Id = Users.Count + 1;
@@ -26,10 +31,16 @@ public class AuthServiceTests
         }
     }
 
+    // A fake token generator, so these tests do not depend on JWT details.
+    private class FakeJwtTokenGenerator : IJwtTokenGenerator
+    {
+        public string Generate(User user) => $"token-for-{user.Id}";
+    }
+
     // Uses the real password hasher: that is what we want to test with.
     private static AuthService CreateService(FakeUserRepository repository)
     {
-        return new AuthService(repository, new PasswordHasher<User>());
+        return new AuthService(repository, new PasswordHasher<User>(), new FakeJwtTokenGenerator());
     }
 
     // The password is saved as a hash, never as plain text, and the hash can be verified later.
@@ -85,5 +96,46 @@ public class AuthServiceTests
             () => service.RegisterAsync("JANE@example.com", "Another123!", CancellationToken.None));
 
         Assert.Equal(ErrorType.Conflict, error.Type);
+    }
+
+    // With the right email and password we get a token (the email can be written with other letters).
+    [Fact]
+    public async Task LoginAsync_CorrectCredentials_ReturnsAToken()
+    {
+        var service = CreateService(new FakeUserRepository());
+        await service.RegisterAsync("jane@example.com", "Secret123!", CancellationToken.None);
+
+        var result = await service.LoginAsync(" Jane@Example.com ", "Secret123!", CancellationToken.None);
+
+        Assert.Equal("token-for-1", result.Token);
+    }
+
+    // A wrong password is rejected with Unauthorized.
+    [Fact]
+    public async Task LoginAsync_WrongPassword_ThrowsUnauthorized()
+    {
+        var service = CreateService(new FakeUserRepository());
+        await service.RegisterAsync("jane@example.com", "Secret123!", CancellationToken.None);
+
+        var error = await Assert.ThrowsAsync<AppException>(
+            () => service.LoginAsync("jane@example.com", "WrongPassword1", CancellationToken.None));
+
+        Assert.Equal(ErrorType.Unauthorized, error.Type);
+    }
+
+    // An unknown email gives the exact same error as a wrong password, so nobody can find out which emails exist.
+    [Fact]
+    public async Task LoginAsync_UnknownEmail_ThrowsTheSameErrorAsWrongPassword()
+    {
+        var service = CreateService(new FakeUserRepository());
+        await service.RegisterAsync("jane@example.com", "Secret123!", CancellationToken.None);
+
+        var unknownEmail = await Assert.ThrowsAsync<AppException>(
+            () => service.LoginAsync("nobody@example.com", "Secret123!", CancellationToken.None));
+        var wrongPassword = await Assert.ThrowsAsync<AppException>(
+            () => service.LoginAsync("jane@example.com", "WrongPassword1", CancellationToken.None));
+
+        Assert.Equal(ErrorType.Unauthorized, unknownEmail.Type);
+        Assert.Equal(wrongPassword.Message, unknownEmail.Message);
     }
 }

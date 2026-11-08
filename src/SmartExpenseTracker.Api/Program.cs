@@ -4,6 +4,7 @@ using SmartExpenseTracker.Api.Middleware;
 using SmartExpenseTracker.Application.Interfaces;
 using SmartExpenseTracker.Application.Services;
 using SmartExpenseTracker.Domain.Entities;
+using SmartExpenseTracker.Infrastructure.Authentication;
 using SmartExpenseTracker.Infrastructure.CurrencyProviders;
 using SmartExpenseTracker.Infrastructure.Persistence;
 using SmartExpenseTracker.Infrastructure.Repositories;
@@ -30,6 +31,8 @@ builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
 
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 

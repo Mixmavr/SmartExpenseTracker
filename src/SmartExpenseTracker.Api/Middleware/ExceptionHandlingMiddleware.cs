@@ -35,6 +35,7 @@ public class ExceptionHandlingMiddleware
                 ErrorType.Validation => (StatusCodes.Status400BadRequest, "Bad request"),
                 ErrorType.NotFound => (StatusCodes.Status404NotFound, "Not found"),
                 ErrorType.Conflict => (StatusCodes.Status409Conflict, "Conflict"),
+                ErrorType.Unauthorized => (StatusCodes.Status401Unauthorized, "Unauthorized"),
                 _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred"),
             },
             ExchangeRateProviderException => (StatusCodes.Status503ServiceUnavailable, "Exchange rates are not available right now"),

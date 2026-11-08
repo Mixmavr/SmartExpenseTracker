@@ -24,4 +24,13 @@ public class AuthController : ControllerBase
         var user = await _authService.RegisterAsync(request.Email, request.Password, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, user);
     }
+
+    /// <summary>Checks the email and password and returns a JWT token.</summary>
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(TokenDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TokenDto>> Login(LoginRequest request, CancellationToken cancellationToken)
+    {
+        var token = await _authService.LoginAsync(request.Email, request.Password, cancellationToken);
+        return Ok(token);
+    }
 }

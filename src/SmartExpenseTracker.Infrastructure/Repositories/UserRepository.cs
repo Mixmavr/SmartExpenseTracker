@@ -19,6 +19,11 @@ public class UserRepository : IUserRepository
         return await _db.Users.AnyAsync(u => u.Email == email, cancellationToken);
     }
 
+    public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        return await _db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken)
     {
         _db.Users.Add(user);

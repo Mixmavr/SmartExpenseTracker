@@ -57,6 +57,16 @@ public class ExceptionHandlingMiddlewareTests
         Assert.Contains("jane@example.com", body.GetProperty("detail").GetString());
     }
 
+    // Wrong login details: 401.
+    [Fact]
+    public async Task InvokeAsync_Unauthorized_Returns401()
+    {
+        var (status, body) = await RunAsync(new AppException(ErrorType.Unauthorized, "Invalid email or password."));
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, status);
+        Assert.Equal("Invalid email or password.", body.GetProperty("detail").GetString());
+    }
+
     // When the rates API is down and we have no backup, the service is temporarily unavailable: 503.
     [Fact]
     public async Task InvokeAsync_ExchangeRateProviderFails_Returns503()
