@@ -22,9 +22,16 @@ public class ExpenseService : IExpenseService
         _currencyConverter = currencyConverter;
     }
 
-    public async Task<List<ExpenseDto>> GetAllAsync(int userId, CancellationToken cancellationToken)
+    public async Task<List<ExpenseDto>> GetAllAsync(int userId, ExpenseFilter filter, CancellationToken cancellationToken)
     {
-        var expenses = await _expenseRepository.GetAllAsync(userId, cancellationToken);
+        if (filter.From > filter.To)
+        {
+            throw new AppException(ErrorType.Validation, "The 'from' date cannot be after the 'to' date.");
+        }
+
+        var currency = string.IsNullOrWhiteSpace(filter.Currency) ? null : filter.Currency.Trim().ToUpperInvariant();
+
+        var expenses = await _expenseRepository.GetAllAsync(userId, filter with { Currency = currency }, cancellationToken);
         return expenses.Select(e => e.ToDto()).ToList();
     }
 

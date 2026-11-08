@@ -19,11 +19,12 @@ public class ExpensesController : ControllerBase
         _expenseService = expenseService;
     }
 
-    /// <summary>Returns the expenses of the logged-in user, newest first.</summary>
+    /// <summary>Returns the expenses of the logged-in user. All filters are optional; the default order is newest first.</summary>
     [HttpGet]
-    public async Task<ActionResult<List<ExpenseDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<ExpenseDto>>> GetAll([FromQuery] ExpenseQuery query, CancellationToken cancellationToken)
     {
-        var expenses = await _expenseService.GetAllAsync(User.GetUserId(), cancellationToken);
+        var filter = new ExpenseFilter(query.CategoryId, query.Currency, query.From, query.To, query.SortBy, query.SortDirection);
+        var expenses = await _expenseService.GetAllAsync(User.GetUserId(), filter, cancellationToken);
         return Ok(expenses);
     }
 

@@ -13,8 +13,12 @@ public class ExpenseServiceTests
     {
         public List<Expense> Expenses { get; } = new();
 
-        public Task<List<Expense>> GetAllAsync(int userId, CancellationToken cancellationToken)
+        // The last filter the service asked for, so tests can check what reached the repository.
+        public ExpenseFilter? LastFilter { get; private set; }
+
+        public Task<List<Expense>> GetAllAsync(int userId, ExpenseFilter filter, CancellationToken cancellationToken)
         {
+            LastFilter = filter;
             return Task.FromResult(Expenses.Where(e => e.UserId == userId).ToList());
         }
 
@@ -209,9 +213,35 @@ public class ExpenseServiceTests
         await setup.Service.CreateAsync(1, Input(), CancellationToken.None);
         await setup.Service.CreateAsync(2, Input(categoryId: 2), CancellationToken.None);
 
-        var expenses = await setup.Service.GetAllAsync(1, CancellationToken.None);
+        var expenses = await setup.Service.GetAllAsync(1, new ExpenseFilter(), CancellationToken.None);
 
         Assert.Single(expenses);
+    }
+
+    // A 'from' date after the 'to' date is a bad request.
+    [Fact]
+    public async Task GetAllAsync_FromAfterTo_ThrowsValidation()
+    {
+        var setup = new Setup();
+        var filter = new ExpenseFilter(From: new DateOnly(2026, 11, 1), To: new DateOnly(2026, 10, 1));
+
+        var error = await Assert.ThrowsAsync<AppException>(
+            () => setup.Service.GetAllAsync(1, filter, CancellationToken.None));
+
+        Assert.Equal(ErrorType.Validation, error.Type);
+    }
+
+    // The currency filter is cleaned (upper case, no spaces) before it reaches the repository. A blank one is ignored.
+    [Fact]
+    public async Task GetAllAsync_CurrencyFilter_IsCleaned()
+    {
+        var setup = new Setup();
+
+        await setup.Service.GetAllAsync(1, new ExpenseFilter(Currency: " usd "), CancellationToken.None);
+        Assert.Equal("USD", setup.Expenses.LastFilter!.Currency);
+
+        await setup.Service.GetAllAsync(1, new ExpenseFilter(Currency: "   "), CancellationToken.None);
+        Assert.Null(setup.Expenses.LastFilter!.Currency);
     }
 
     // An expense of another user looks like it does not exist: NotFound.

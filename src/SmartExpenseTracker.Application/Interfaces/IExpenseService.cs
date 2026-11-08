@@ -4,7 +4,7 @@ namespace SmartExpenseTracker.Application.Interfaces;
 
 public interface IExpenseService
 {
-    Task<List<ExpenseDto>> GetAllAsync(int userId, CancellationToken cancellationToken);
+    Task<List<ExpenseDto>> GetAllAsync(int userId, ExpenseFilter filter, CancellationToken cancellationToken);
 
     Task<ExpenseDto> GetByIdAsync(int userId, int id, CancellationToken cancellationToken);
 
