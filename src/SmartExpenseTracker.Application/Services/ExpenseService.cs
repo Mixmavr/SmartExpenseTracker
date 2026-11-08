@@ -98,6 +98,51 @@ public class ExpenseService : IExpenseService
         await _expenseRepository.DeleteAsync(expense, cancellationToken);
     }
 
+    public async Task<List<CategoryTotalDto>> GetTotalsByCategoryAsync(int userId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    {
+        var expenses = await GetExpensesInRangeAsync(userId, from, to, cancellationToken);
+
+        return expenses
+            .GroupBy(e => new { e.CategoryId, e.Category!.Name })
+            .Select(g => new CategoryTotalDto(g.Key.CategoryId, g.Key.Name, g.Count(), g.Sum(e => e.AmountInEur)))
+            .OrderByDescending(c => c.TotalEur)
+            .ThenBy(c => c.CategoryName)
+            .ToList();
+    }
+
+    public async Task<List<PeriodTotalDto>> GetTotalsByPeriodAsync(int userId, DateOnly? from, DateOnly? to, SummaryPeriod period, CancellationToken cancellationToken)
+    {
+        var expenses = await GetExpensesInRangeAsync(userId, from, to, cancellationToken);
+
+        return expenses
+            .GroupBy(e => GetPeriodStart(e.Date, period))
+            .Select(g => new PeriodTotalDto(g.Key, g.Count(), g.Sum(e => e.AmountInEur)))
+            .OrderBy(p => p.PeriodStart)
+            .ToList();
+    }
+
+    // The sums are done in C# and not in SQLite, because SQLite has no real decimal type.
+    private async Task<List<Expense>> GetExpensesInRangeAsync(int userId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    {
+        if (from > to)
+        {
+            throw new AppException(ErrorType.Validation, "The 'from' date cannot be after the 'to' date.");
+        }
+
+        return await _expenseRepository.GetAllAsync(userId, new ExpenseFilter(From: from, To: to), cancellationToken);
+    }
+
+    private static DateOnly GetPeriodStart(DateOnly date, SummaryPeriod period)
+    {
+        return period switch
+        {
+            SummaryPeriod.Day => date,
+            // DayOfWeek starts on Sunday (0), so this moves back to the Monday of the same week.
+            SummaryPeriod.Week => date.AddDays(-(((int)date.DayOfWeek + 6) % 7)),
+            _ => new DateOnly(date.Year, date.Month, 1),
+        };
+    }
+
     private async Task<Expense> GetOwnedExpenseAsync(int userId, int id, CancellationToken cancellationToken)
     {
         var expense = await _expenseRepository.GetByIdAsync(userId, id, cancellationToken);

@@ -28,6 +28,22 @@ public class ExpensesController : ControllerBase
         return Ok(expenses);
     }
 
+    /// <summary>Total spending in EUR per category. The dates are optional.</summary>
+    [HttpGet("summary/by-category")]
+    public async Task<ActionResult<List<CategoryTotalDto>>> GetByCategory(DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    {
+        var totals = await _expenseService.GetTotalsByCategoryAsync(User.GetUserId(), from, to, cancellationToken);
+        return Ok(totals);
+    }
+
+    /// <summary>Total spending in EUR per day, week (starting Monday) or month. The dates are optional.</summary>
+    [HttpGet("summary/by-period")]
+    public async Task<ActionResult<List<PeriodTotalDto>>> GetByPeriod(DateOnly? from, DateOnly? to, SummaryPeriod period = SummaryPeriod.Month, CancellationToken cancellationToken = default)
+    {
+        var totals = await _expenseService.GetTotalsByPeriodAsync(User.GetUserId(), from, to, period, cancellationToken);
+        return Ok(totals);
+    }
+
     /// <summary>Returns one expense.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ExpenseDto>> GetById(int id, CancellationToken cancellationToken)

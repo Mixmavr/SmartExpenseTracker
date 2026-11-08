@@ -19,7 +19,14 @@ public class ExpenseServiceTests
         public Task<List<Expense>> GetAllAsync(int userId, ExpenseFilter filter, CancellationToken cancellationToken)
         {
             LastFilter = filter;
-            return Task.FromResult(Expenses.Where(e => e.UserId == userId).ToList());
+
+            var result = Expenses
+                .Where(e => e.UserId == userId)
+                .Where(e => filter.From == null || e.Date >= filter.From)
+                .Where(e => filter.To == null || e.Date <= filter.To)
+                .ToList();
+
+            return Task.FromResult(result);
         }
 
         public Task<Expense?> GetByIdAsync(int userId, int id, CancellationToken cancellationToken)
@@ -311,5 +318,151 @@ public class ExpenseServiceTests
 
         await setup.Service.DeleteAsync(1, expense.Id, CancellationToken.None);
         Assert.Empty(setup.Expenses.Expenses);
+    }
+
+    // For the totals: user 1 has Food 11.47 (Mon 5 Oct), Food 45.20 (Wed 7 Oct), Transport 28.76 (Sun 11 Oct)
+    // and Transport 30.00 (Mon 2 Nov). User 2 has one expense that must never be counted.
+    // The amounts have decimals on purpose, to check that the sums are exact.
+    private static Setup SetupWithExpensesForTotals()
+    {
+        var setup = new Setup();
+        var food = new Category { Id = 1, Name = "Food", UserId = 1 };
+        var transport = new Category { Id = 3, Name = "Transport", UserId = 1 };
+        var travel = new Category { Id = 2, Name = "Travel", UserId = 2 };
+
+        setup.Expenses.Expenses.Add(NewExpenseForTotals(1, 1, food, new DateOnly(2026, 10, 5), 11.47m));
+        setup.Expenses.Expenses.Add(NewExpenseForTotals(2, 1, food, new DateOnly(2026, 10, 7), 45.20m));
+        setup.Expenses.Expenses.Add(NewExpenseForTotals(3, 1, transport, new DateOnly(2026, 10, 11), 28.76m));
+        setup.Expenses.Expenses.Add(NewExpenseForTotals(4, 1, transport, new DateOnly(2026, 11, 2), 30.00m));
+        setup.Expenses.Expenses.Add(NewExpenseForTotals(5, 2, travel, new DateOnly(2026, 10, 6), 999m));
+
+        return setup;
+    }
+
+    private static Expense NewExpenseForTotals(int id, int userId, Category category, DateOnly date, decimal amountInEur)
+    {
+        return new Expense { Id = id, UserId = userId, CategoryId = category.Id, Category = category, Date = date, AmountInEur = amountInEur };
+    }
+
+    // The totals per category, with the biggest first. The expense of the other user is not counted.
+    [Fact]
+    public async Task GetTotalsByCategoryAsync_GroupsByCategory_BiggestFirst()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByCategoryAsync(1, null, null, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { new CategoryTotalDto(3, "Transport", 2, 58.76m), new CategoryTotalDto(1, "Food", 2, 56.67m) },
+            totals);
+    }
+
+    // Only the expenses between 'from' and 'to' are counted.
+    [Fact]
+    public async Task GetTotalsByCategoryAsync_UsesTheDateRange()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByCategoryAsync(1, new DateOnly(2026, 10, 7), new DateOnly(2026, 10, 31), CancellationToken.None);
+
+        Assert.Equal(
+            new[] { new CategoryTotalDto(1, "Food", 1, 45.20m), new CategoryTotalDto(3, "Transport", 1, 28.76m) },
+            totals);
+    }
+
+    // A user without expenses gets an empty list.
+    [Fact]
+    public async Task GetTotalsByCategoryAsync_NoExpenses_ReturnsAnEmptyList()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByCategoryAsync(99, null, null, CancellationToken.None);
+
+        Assert.Empty(totals);
+    }
+
+    // A 'from' date after the 'to' date is a bad request.
+    [Fact]
+    public async Task GetTotalsByCategoryAsync_FromAfterTo_ThrowsValidation()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var error = await Assert.ThrowsAsync<AppException>(
+            () => setup.Service.GetTotalsByCategoryAsync(1, new DateOnly(2026, 11, 1), new DateOnly(2026, 10, 1), CancellationToken.None));
+
+        Assert.Equal(ErrorType.Validation, error.Type);
+    }
+
+    // Per month: the key is the first day of the month.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_GroupsByMonth()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByPeriodAsync(1, null, null, SummaryPeriod.Month, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { new PeriodTotalDto(new DateOnly(2026, 10, 1), 3, 85.43m), new PeriodTotalDto(new DateOnly(2026, 11, 1), 1, 30.00m) },
+            totals);
+    }
+
+    // Per week: the key is the Monday. Sunday 11 Oct belongs to the week that started on Monday 5 Oct.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_GroupsByWeek_StartingOnMonday()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByPeriodAsync(1, null, null, SummaryPeriod.Week, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { new PeriodTotalDto(new DateOnly(2026, 10, 5), 3, 85.43m), new PeriodTotalDto(new DateOnly(2026, 11, 2), 1, 30.00m) },
+            totals);
+    }
+
+    // Per day: one line for every day that has expenses, in date order.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_GroupsByDay()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByPeriodAsync(1, null, null, SummaryPeriod.Day, CancellationToken.None);
+
+        Assert.Equal(
+            new[] { new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 7), new DateOnly(2026, 10, 11), new DateOnly(2026, 11, 2) },
+            totals.Select(p => p.PeriodStart));
+    }
+
+    // Only the expenses between 'from' and 'to' are counted.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_UsesTheDateRange()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByPeriodAsync(1, new DateOnly(2026, 10, 7), new DateOnly(2026, 10, 31), SummaryPeriod.Month, CancellationToken.None);
+
+        Assert.Equal(new[] { new PeriodTotalDto(new DateOnly(2026, 10, 1), 2, 73.96m) }, totals);
+    }
+
+    // A user without expenses gets an empty list.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_NoExpenses_ReturnsAnEmptyList()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var totals = await setup.Service.GetTotalsByPeriodAsync(99, null, null, SummaryPeriod.Month, CancellationToken.None);
+
+        Assert.Empty(totals);
+    }
+
+    // A 'from' date after the 'to' date is a bad request.
+    [Fact]
+    public async Task GetTotalsByPeriodAsync_FromAfterTo_ThrowsValidation()
+    {
+        var setup = SetupWithExpensesForTotals();
+
+        var error = await Assert.ThrowsAsync<AppException>(
+            () => setup.Service.GetTotalsByPeriodAsync(1, new DateOnly(2026, 11, 1), new DateOnly(2026, 10, 1), SummaryPeriod.Month, CancellationToken.None));
+
+        Assert.Equal(ErrorType.Validation, error.Type);
     }
 }

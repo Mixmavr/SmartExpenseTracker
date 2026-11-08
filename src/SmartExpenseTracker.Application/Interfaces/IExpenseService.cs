@@ -13,4 +13,8 @@ public interface IExpenseService
     Task<ExpenseDto> UpdateAsync(int userId, int id, ExpenseInput input, CancellationToken cancellationToken);
 
     Task DeleteAsync(int userId, int id, CancellationToken cancellationToken);
+
+    Task<List<CategoryTotalDto>> GetTotalsByCategoryAsync(int userId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken);
+
+    Task<List<PeriodTotalDto>> GetTotalsByPeriodAsync(int userId, DateOnly? from, DateOnly? to, SummaryPeriod period, CancellationToken cancellationToken);
 }
