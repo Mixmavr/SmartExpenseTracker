@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartExpenseTracker.Application.Interfaces;
 using SmartExpenseTracker.Application.Models;
@@ -5,6 +6,7 @@ using SmartExpenseTracker.Application.Models;
 namespace SmartExpenseTracker.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/exchange-rates")]
 public class ExchangeRatesController : ControllerBase
 {
