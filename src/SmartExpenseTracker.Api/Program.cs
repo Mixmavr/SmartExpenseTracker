@@ -19,6 +19,7 @@ builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>()
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
 
 var app = builder.Build();
 

@@ -6,8 +6,8 @@ namespace SmartExpenseTracker.Application.Currency;
 public class ExchangeRateService : IExchangeRateService
 {
     public const string CacheKey = "exchange-rates";
+    public const string BaseCurrency = "EUR";
     private const string BackupKey = "exchange-rates-backup";
-    private const string BaseCurrency = "EUR";
 
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
     private static readonly TimeSpan FallbackCacheDuration = TimeSpan.FromMinutes(1);
