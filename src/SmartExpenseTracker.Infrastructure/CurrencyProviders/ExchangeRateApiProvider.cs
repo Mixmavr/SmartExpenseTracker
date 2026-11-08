@@ -31,6 +31,11 @@ public class ExchangeRateApiProvider : IExchangeRateProvider
         {
             throw new ExchangeRateProviderException("Could not reach ExchangeRate-API.", ex);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The HttpClient timeout fires as a cancellation, but the caller did not cancel.
+            throw new ExchangeRateProviderException("ExchangeRate-API did not respond in time.", ex);
+        }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             throw new ExchangeRateProviderException("ExchangeRate-API returned a response we could not read.", ex);

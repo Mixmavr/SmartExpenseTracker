@@ -20,7 +20,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.Configure<ExchangeRateApiSettings>(builder.Configuration.GetSection("ExchangeRateApi"));
-builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>();
+builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
