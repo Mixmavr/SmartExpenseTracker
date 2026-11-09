@@ -60,6 +60,7 @@ builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>(c
 });
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
 
@@ -98,6 +99,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseMiddleware<RequestStatisticsMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.

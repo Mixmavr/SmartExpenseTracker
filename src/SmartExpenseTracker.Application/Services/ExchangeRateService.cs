@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using SmartExpenseTracker.Application.Interfaces;
+using SmartExpenseTracker.Application.Models;
 
 namespace SmartExpenseTracker.Application.Services;
 
@@ -19,12 +20,14 @@ public class ExchangeRateService : IExchangeRateService
     private readonly IExchangeRateProvider _provider;
     private readonly IMemoryCache _cache;
     private readonly ILogger<ExchangeRateService> _logger;
+    private readonly IStatisticsService _statistics;
 
-    public ExchangeRateService(IExchangeRateProvider provider, IMemoryCache cache, ILogger<ExchangeRateService> logger)
+    public ExchangeRateService(IExchangeRateProvider provider, IMemoryCache cache, ILogger<ExchangeRateService> logger, IStatisticsService statistics)
     {
         _provider = provider;
         _cache = cache;
         _logger = logger;
+        _statistics = statistics;
     }
 
     public async Task<Dictionary<string, decimal>> GetRatesAsync(CancellationToken cancellationToken)
@@ -33,6 +36,7 @@ public class ExchangeRateService : IExchangeRateService
         var cachedRates = GetFromCache(CacheKey);
         if (cachedRates != null)
         {
+            _statistics.RecordExchangeRateEvent(ExchangeRateEvent.CacheHit);
             return cachedRates;
         }
 
@@ -43,11 +47,13 @@ public class ExchangeRateService : IExchangeRateService
             cachedRates = GetFromCache(CacheKey);
             if (cachedRates != null)
             {
+                _statistics.RecordExchangeRateEvent(ExchangeRateEvent.CacheHit);
                 return cachedRates;
             }
 
             try
             {
+                _statistics.RecordExchangeRateEvent(ExchangeRateEvent.ProviderCall);
                 var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
                 _cache.Set(CacheKey, rates, CacheDuration);
                 _cache.Set(BackupKey, rates); // Backup copy
@@ -56,6 +62,7 @@ public class ExchangeRateService : IExchangeRateService
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(ex, "The exchange rate API failed. Trying the last known rates.");
+                _statistics.RecordExchangeRateEvent(ExchangeRateEvent.ProviderFailure);
 
                 // 3. Use backup if API fail
                 var backupRates = GetFromCache(BackupKey);
@@ -65,6 +72,7 @@ public class ExchangeRateService : IExchangeRateService
                 }
 
                 // Fill with backup for next 1 min
+                _statistics.RecordExchangeRateEvent(ExchangeRateEvent.FallbackUsed);
                 _cache.Set(CacheKey, backupRates, FallbackCacheDuration);
                 return backupRates;
             }
