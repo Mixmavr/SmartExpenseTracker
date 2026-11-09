@@ -11,7 +11,9 @@ public class ExchangeRateService : IExchangeRateService
     public const string BaseCurrency = "EUR";
     private const string BackupKey = "exchange-rates-backup";
 
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+    // The background service refreshes the rates every hour. The cache lasts 5 minutes more, so it does not expire between two refreshes.
+    public static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan CacheDuration = RefreshInterval + TimeSpan.FromMinutes(5);
     private static readonly TimeSpan FallbackCacheDuration = TimeSpan.FromMinutes(1);
 
     // Static, so all requests share the same lock (the service itself is created once per request).
@@ -55,8 +57,7 @@ public class ExchangeRateService : IExchangeRateService
             {
                 _statistics.RecordExchangeRateEvent(ExchangeRateEvent.ProviderCall);
                 var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
-                _cache.Set(CacheKey, rates, CacheDuration);
-                _cache.Set(BackupKey, rates); // Backup copy
+                SaveRates(rates);
                 return rates;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
@@ -81,6 +82,37 @@ public class ExchangeRateService : IExchangeRateService
         {
             Lock.Release();
         }
+    }
+
+    public async Task RefreshAsync(CancellationToken cancellationToken)
+    {
+        await Lock.WaitAsync(cancellationToken);
+        try
+        {
+            _statistics.RecordExchangeRateEvent(ExchangeRateEvent.ProviderCall);
+
+            try
+            {
+                var rates = await _provider.GetLatestRatesAsync(BaseCurrency, cancellationToken);
+                SaveRates(rates);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // The saved rates stay as they are, and the caller decides what to do with the error.
+                _statistics.RecordExchangeRateEvent(ExchangeRateEvent.ProviderFailure);
+                throw;
+            }
+        }
+        finally
+        {
+            Lock.Release();
+        }
+    }
+
+    private void SaveRates(Dictionary<string, decimal> rates)
+    {
+        _cache.Set(CacheKey, rates, CacheDuration);
+        _cache.Set(BackupKey, rates); // Backup copy
     }
 
     private Dictionary<string, decimal>? GetFromCache(string key)

@@ -22,6 +22,9 @@ public class ExchangeRateServiceTests
         // Pretends the API is down.
         public bool Fail { get; set; }
 
+        // The USD rate the API gives.
+        public decimal Rate { get; set; } = 1.25m;
+
         public async Task<Dictionary<string, decimal>> GetLatestRatesAsync(string baseCurrency, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _calls);
@@ -32,7 +35,7 @@ public class ExchangeRateServiceTests
                 throw new ExchangeRateProviderException("The API is down.");
             }
 
-            return new Dictionary<string, decimal> { ["USD"] = 1.25m };
+            return new Dictionary<string, decimal> { ["USD"] = Rate };
         }
     }
 
@@ -161,5 +164,81 @@ public class ExchangeRateServiceTests
 
         // 2 API calls (1 worked, 1 failed), 1 failure, 1 use of the backup, and no cache hit.
         Assert.Equal(new ExchangeRateStatisticsDto(0, 2, 1, 1), statistics.GetSnapshot().ExchangeRates);
+    }
+
+    // Background refresh: it fills the cache, so the next request does not call the API.
+    [Fact]
+    public async Task RefreshAsync_FillsTheCache_SoTheNextRequestDoesNotCallTheApi()
+    {
+        var provider = new FakeExchangeRateProvider();
+        var service = CreateService(provider, new MemoryCache(new MemoryCacheOptions()));
+
+        await service.RefreshAsync(CancellationToken.None);
+        await service.GetRatesAsync(CancellationToken.None);
+
+        Assert.Equal(1, provider.Calls);
+    }
+
+    // Background refresh: it always asks the API and replaces the saved rates with the new ones.
+    [Fact]
+    public async Task RefreshAsync_ReplacesTheSavedRates()
+    {
+        var provider = new FakeExchangeRateProvider();
+        var service = CreateService(provider, new MemoryCache(new MemoryCacheOptions()));
+        await service.GetRatesAsync(CancellationToken.None);
+
+        provider.Rate = 1.30m;
+        await service.RefreshAsync(CancellationToken.None);
+        var rates = await service.GetRatesAsync(CancellationToken.None);
+
+        Assert.Equal(1.30m, rates["USD"]);
+        Assert.Equal(2, provider.Calls);
+    }
+
+    // Background refresh: when the API is down, the error is thrown (the background service logs it) and the saved rates stay.
+    [Fact]
+    public async Task RefreshAsync_ApiFails_ThrowsAndKeepsTheSavedRates()
+    {
+        var provider = new FakeExchangeRateProvider();
+        var service = CreateService(provider, new MemoryCache(new MemoryCacheOptions()));
+        await service.GetRatesAsync(CancellationToken.None);
+        provider.Fail = true;
+
+        await Assert.ThrowsAsync<ExchangeRateProviderException>(() => service.RefreshAsync(CancellationToken.None));
+        var rates = await service.GetRatesAsync(CancellationToken.None);
+
+        Assert.Equal(1.25m, rates["USD"]);
+        Assert.Equal(2, provider.Calls);
+    }
+
+    // Background refresh: it also saves the backup copy, used later if the cache expires and the API is down.
+    [Fact]
+    public async Task RefreshAsync_SavesTheBackupCopy()
+    {
+        var provider = new FakeExchangeRateProvider();
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = CreateService(provider, cache);
+        await service.RefreshAsync(CancellationToken.None);
+
+        cache.Remove(ExchangeRateService.CacheKey);
+        provider.Fail = true;
+        var rates = await service.GetRatesAsync(CancellationToken.None);
+
+        Assert.Equal(1.25m, rates["USD"]);
+    }
+
+    // Statistics: a refresh counts as an API call, and a failed refresh also counts as a failure.
+    [Fact]
+    public async Task RefreshAsync_CountsTheApiCallsAndTheFailure()
+    {
+        var statistics = new StatisticsService();
+        var provider = new FakeExchangeRateProvider();
+        var service = CreateService(provider, new MemoryCache(new MemoryCacheOptions()), statistics);
+
+        await service.RefreshAsync(CancellationToken.None);
+        provider.Fail = true;
+        await Assert.ThrowsAsync<ExchangeRateProviderException>(() => service.RefreshAsync(CancellationToken.None));
+
+        Assert.Equal(new ExchangeRateStatisticsDto(0, 2, 1, 0), statistics.GetSnapshot().ExchangeRates);
     }
 }

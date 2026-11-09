@@ -16,6 +16,8 @@ public class CurrencyConverterTests
             Calls++;
             return Task.FromResult(new Dictionary<string, decimal> { ["USD"] = 1.25m, ["JPY"] = 160m });
         }
+
+        public Task RefreshAsync(CancellationToken cancellationToken) => throw new NotImplementedException();
     }
 
     // Euros stay the same and we do not even ask for the rates.

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using SmartExpenseTracker.Api.BackgroundServices;
 using SmartExpenseTracker.Api.Middleware;
 using SmartExpenseTracker.Application.Interfaces;
 using SmartExpenseTracker.Application.Services;
@@ -62,6 +63,7 @@ builder.Services.AddHttpClient<IExchangeRateProvider, ExchangeRateApiProvider>(c
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
+builder.Services.AddHostedService<ExchangeRateRefreshService>();
 builder.Services.AddScoped<ICurrencyConverter, CurrencyConverter>();
 
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
